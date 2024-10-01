@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User 
+from .models import User , Order, OrderItem
 from django.contrib.auth import authenticate
 
 
@@ -39,3 +39,25 @@ class UserLoginSerializer(serializers.Serializer):
 
         data['user'] = user
         return data
+    
+    
+
+class ItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OrderItem
+        fields = ['name', 'price', 'quantity']
+    
+class OrderSerializer(serializers.ModelSerializer):
+    items = ItemSerializer(many=True)
+
+    class Meta:
+        model = Order
+        fields = ['items']
+
+    def create(self, validated_data):
+        items_data = validated_data.pop('items')
+        order = Order.objects.create(**validated_data)
+        for item_data in items_data:
+            item, created = OrderItem.objects.get_or_create(**item_data)
+            order.items.add(item)
+        return order
