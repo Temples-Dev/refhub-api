@@ -12,3 +12,12 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.email
+
+
+class Order(models.Model):
+    name = models.CharField(max_length=255)  # Item name
+    price = models.DecimalField(max_digits=10, decimal_places=2)  # Item price
+    quantity = models.PositiveIntegerField()  # Item quantity
+
+    def __str__(self):
+        return f'{self.name} (Quantity: {self.quantity}, Price: {self.price})'
