@@ -77,29 +77,52 @@ class OrderView(APIView):
     
     @swagger_auto_schema(
         request_body=openapi.Schema(
-            type=openapi.TYPE_ARRAY,
-            items=openapi.Schema(
-                type=openapi.TYPE_OBJECT,
-                required=['name', 'price', 'quantity'],
-                properties={
-                    'name': openapi.Schema(
-                        type=openapi.TYPE_STRING,
-                        description='Name of the food item',
-                        example='Burger'
+            type=openapi.TYPE_OBJECT,
+            required=['items'],
+            properties={
+                'items': openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        required=['name', 'price', 'quantity'],
+                        properties={
+                            'name': openapi.Schema(
+                                type=openapi.TYPE_STRING,
+                                description='Name of the food item',
+                                example='Wakye'
+                            ),
+                            'price': openapi.Schema(
+                                type=openapi.TYPE_NUMBER,
+                                format=openapi.FORMAT_FLOAT,
+                                description='Price of the item',
+                                example=2.99
+                            ),
+                            'quantity': openapi.Schema(
+                                type=openapi.TYPE_INTEGER,
+                                description='Quantity of items to order',
+                                example=1
+                            ),
+                        }
                     ),
-                    'price': openapi.Schema(
-                        type=openapi.TYPE_NUMBER,
-                        format=openapi.FORMAT_FLOAT,
-                        description='Price of the item',
-                        example=5.99
-                    ),
-                    'quantity': openapi.Schema(
-                        type=openapi.TYPE_INTEGER,
-                        description='Quantity of items to order',
-                        example=2
-                    ),
-                }
-            )
+                    example=[
+                        {
+                            "name": "Bread",
+                            "price": 5.99,
+                            "quantity": 2
+                        },
+                        {
+                            "name": "Koose",
+                            "price": 5.99,
+                            "quantity": 2
+                        },
+                        {
+                            "name": "Wakye",
+                            "price": 2.99,
+                            "quantity": 1
+                        }
+                    ]
+                )
+            }
         ),
         responses={
             201: openapi.Response(
@@ -110,17 +133,24 @@ class OrderView(APIView):
                         "orders": [
                             {
                                 "id": 1,
-                                "name": "Burger",
+                                "name": "Bread",
                                 "price": 5.99,
                                 "quantity": 2,
                                 "total": 11.98
                             },
                             {
                                 "id": 2,
-                                "name": "Pizza",
-                                "price": 12.99,
+                                "name": "Koose",
+                                "price": 5.99,
+                                "quantity": 2,
+                                "total": 11.98
+                            },
+                            {
+                                "id": 3,
+                                "name": "Wakye",
+                                "price": 2.99,
                                 "quantity": 1,
-                                "total": 12.99
+                                "total": 2.99
                             }
                         ]
                     }
@@ -130,25 +160,21 @@ class OrderView(APIView):
                 description="Bad request",
                 examples={
                     "application/json": {
-                        "error": "Invalid order data",
-                        "details": [
-                            {
-                                "order": 1,
-                                "errors": {
-                                    "price": ["Price must be a positive number"]
-                                }
-                            }
-                        ]
+                        "error": "Invalid request",
+                        "details": "Missing or invalid items array"
                     }
                 }
             )
         },
-        operation_description="Create multiple orders at once. Each order should contain name, price, and quantity."
+        operation_description="Create multiple orders at once. Provide an array of items, each containing name, price, and quantity."
     )
     
     def post(self, request):
         serializer = OrderSerializer(data=request.data)
         if serializer.is_valid():
             order = serializer.save()
-            return Response({'message': 'Order submitted successfully', 'orders': OrderSerializer(order).data}, status=status.HTTP_201_CREATED)
+            return Response({
+                "message": "Order submitted successfully",
+                "orders": order.items.values() 
+            }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
