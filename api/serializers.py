@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User , Order, OrderItem
+from .models import User , Order, OrderItem, TransportationFee
 from django.contrib.auth import authenticate
 
 
@@ -45,6 +45,11 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [ 'username']    
+        
+class TransportationFeeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TransportationFee
+        fields = ['amount']
 
 class ItemSerializer(serializers.ModelSerializer):
     class Meta:
@@ -53,21 +58,32 @@ class ItemSerializer(serializers.ModelSerializer):
     
     
 class OrderSerializer(serializers.ModelSerializer):
+    orderId = serializers.IntegerField(source='id', read_only=True)
+    order_date = serializers.DateTimeField(source='created_at', format='%Y-%m-%d', read_only=True)
+    user = UserSerializer(read_only=True)
     items = ItemSerializer(many=True)  # Serializing multiple items
+    total_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    transportation_fee = serializers.DecimalField(source='transportation_fee.amount', max_digits=6, decimal_places=2)
+    
 
     class Meta:
         model = Order
-        fields = ['items']  # Add other fields like user if necessary
+        fields = ["orderId",'order_date','total_amount','transportation_fee',"user",'items']  
 
     def create(self, validated_data):
         # First, extract the list of items from the validated data
         items_data = validated_data.pop('items')
 
-        # Create the order (it must be created first before adding items)
-        order = Order.objects.create(**validated_data)
+        transportation_fee = validated_data.pop('transportation_fee')
+
+        order = Order.objects.create(**validated_data, transportation_fee=transportation_fee)
 
         # Now iterate over items_data and create the OrderItem linked to the Order
         for item_data in items_data:
             OrderItem.objects.create(order=order, **item_data)
+            
+        # Calculate and set total amount
+        order.total_amount = order.calculate_total()
+        order.save()
 
         return order

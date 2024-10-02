@@ -11,7 +11,8 @@ from .models import Order
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from rest_framework_simplejwt.tokens import RefreshToken
-
+from .models import TransportationFee
+from .serializers import TransportationFeeSerializer
 
 class UserSignupView(APIView):
     @swagger_auto_schema(
@@ -231,3 +232,24 @@ class OrderListView(APIView):
         serializer = OrderSerializer(orders, many=True)
         
         return Response(serializer.data)
+    
+    
+
+
+
+class TransportationFeeUpdateAPIView(APIView):
+    def get(self, request):
+        try:
+            fee = TransportationFee.objects.first()
+            serializer = TransportationFeeSerializer(fee)
+            return Response(serializer.data)
+        except TransportationFee.DoesNotExist:
+            return Response({"error": "Transportation fee not set."}, status=status.HTTP_404_NOT_FOUND)
+
+    def post(self, request):
+        fee = TransportationFee.objects.first()
+        serializer = TransportationFeeSerializer(fee, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"status": "success", "fee": serializer.data}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
