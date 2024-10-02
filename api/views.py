@@ -5,6 +5,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from .serializers import UserSignupSerializer, UserLoginSerializer, OrderSerializer
+from .models import Order
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
@@ -169,12 +170,38 @@ class OrderView(APIView):
         operation_description="Create multiple orders at once. Provide an array of items, each containing name, price, and quantity."
     )
     
-    def post(self, request):
+    # def post(self, request):
+    #     serializer = OrderSerializer(data=request.data)
+    #     if serializer.is_valid():
+    #         order = serializer.save()
+    #         return Response({
+    #             "message": "Order submitted successfully",
+    #             "orders": order.items.values() 
+    #         }, status=status.HTTP_201_CREATED)
+    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def post(self, request, *args, **kwargs):
+        # Parse the incoming data
         serializer = OrderSerializer(data=request.data)
+
+        # Check if the data is valid
         if serializer.is_valid():
-            order = serializer.save()
-            return Response({
-                "message": "Order submitted successfully",
-                "orders": order.items.values() 
-            }, status=status.HTTP_201_CREATED)
+            # Save the order and associate it with the authenticated user
+            serializer.save(user=request.user)
+
+            return Response({"message": "Order created successfully", "order": serializer.data}, status=status.HTTP_201_CREATED)
+
+        # Return an error response if the data is invalid
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    
+    
+class OrderListView(APIView):
+    def get(self, request, *args, **kwargs):
+        # Retrieve all orders
+        orders = Order.objects.all().prefetch_related('items').select_related('user')  # Optimize queries
+        
+        # Serialize the orders
+        serializer = OrderSerializer(orders, many=True)
+        
+        return Response(serializer.data)

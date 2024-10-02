@@ -40,24 +40,31 @@ class UserLoginSerializer(serializers.Serializer):
         data['user'] = user
         return data
     
-    
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [ 'username']    
 
 class ItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderItem
         fields = ['name', 'price', 'quantity']
     
-class OrderSerializer(serializers.ModelSerializer):
-    items = ItemSerializer(many=True)
-
     class Meta:
         model = Order
-        fields = ['items']
+        fields = ['items']  
 
     def create(self, validated_data):
+        # Get the list of items
         items_data = validated_data.pop('items')
+
+        # Create the order without the user, the view will add the user
         order = Order.objects.create(**validated_data)
+
+        # Create or get order items and add them to the order
         for item_data in items_data:
-            item, created = OrderItem.objects.get_or_create(**item_data)
-            order.items.add(item)
+            item = OrderItem.objects.create(**item_data)  # Create each item individually
+            order.items.add(item)  # Add the item to the order
+
         return order

@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User
+from .models import User, OrderItem
 
 class CustomUserAdmin(UserAdmin):
     # Display email in the admin panel
@@ -9,3 +9,10 @@ class CustomUserAdmin(UserAdmin):
     ordering = ('email',)
 
 admin.site.register(User, CustomUserAdmin)
+
+
+class OrderItemAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'price', 'quantity', "order")
+    search_fields = ('name',)
+    
+admin.site.register(OrderItem, OrderItemAdmin)
