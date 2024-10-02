@@ -1,4 +1,7 @@
 from django.urls import path
+from django.urls import path
+
+
 from .views import UserSignupView, UserLoginView, OrderView, OrderListView
 
 urlpatterns = [
@@ -7,3 +10,5 @@ urlpatterns = [
     path('orders/', OrderView.as_view(), name='orders'),
      path('orderss/', OrderListView.as_view(), name='order-list'),
 ]
+
+

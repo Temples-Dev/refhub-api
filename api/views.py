@@ -4,11 +4,13 @@ from django.shortcuts import render
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from .serializers import UserSignupSerializer, UserLoginSerializer, OrderSerializer
 from .models import Order
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-
+from rest_framework_simplejwt.tokens import RefreshToken
 
 
 class UserSignupView(APIView):
@@ -40,10 +42,9 @@ class UserSignupView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-
-
-class UserLoginView(APIView):
+   
     
+class UserLoginView(APIView):
     @swagger_auto_schema(
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
@@ -56,27 +57,52 @@ class UserLoginView(APIView):
         responses={
             200: openapi.Response(
                 description="Login successful",
-            
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'user': openapi.Schema(type=openapi.TYPE_STRING),
+                        'accessToken': openapi.Schema(type=openapi.TYPE_STRING),
+                        'refresh': openapi.Schema(type=openapi.TYPE_STRING),
+                    }
+                )
             ),
             401: "Unauthorized"
         },
         operation_description="Login to existing account"
-        )
-    
-    
+    )
     def post(self, request, *args, **kwargs):
         serializer = UserLoginSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.validated_data['user']
-            return Response({"message": "Login successful", "user": user.username}, status=status.HTTP_200_OK)
+            
+            # Generate JWT tokens
+            refresh = RefreshToken.for_user(user)
+            
+            return Response({
+                "message": "Login successful",
+                "user": user.username,
+                "accessToken": str(refresh.access_token),
+                "refresh": str(refresh)
+            }, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    
-    
     
 class OrderView(APIView):
     
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    
     @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter(
+                name='Authorization',
+                in_=openapi.IN_HEADER,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description='Bearer {token}',
+                default='Bearer '
+            ),
+        ],
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             required=['items'],
@@ -165,21 +191,21 @@ class OrderView(APIView):
                         "details": "Missing or invalid items array"
                     }
                 }
+            ),
+            401: openapi.Response(
+                description="Unauthorized",
+                examples={
+                    "application/json": {
+                        "detail": "Authentication credentials were not provided."
+                    }
+                }
             )
         },
-        operation_description="Create multiple orders at once. Provide an array of items, each containing name, price, and quantity."
+        operation_description="Create multiple orders at once. Provide an array of items, each containing name, price, and quantity. Requires Bearer token authentication."
     )
     
-    # def post(self, request):
-    #     serializer = OrderSerializer(data=request.data)
-    #     if serializer.is_valid():
-    #         order = serializer.save()
-    #         return Response({
-    #             "message": "Order submitted successfully",
-    #             "orders": order.items.values() 
-    #         }, status=status.HTTP_201_CREATED)
-    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+  
+  
     def post(self, request, *args, **kwargs):
         # Parse the incoming data
         serializer = OrderSerializer(data=request.data)

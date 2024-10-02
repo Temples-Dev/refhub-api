@@ -51,20 +51,23 @@ class ItemSerializer(serializers.ModelSerializer):
         model = OrderItem
         fields = ['name', 'price', 'quantity']
     
+    
+class OrderSerializer(serializers.ModelSerializer):
+    items = ItemSerializer(many=True)  # Serializing multiple items
+
     class Meta:
         model = Order
-        fields = ['items']  
+        fields = ['items']  # Add other fields like user if necessary
 
     def create(self, validated_data):
-        # Get the list of items
+        # First, extract the list of items from the validated data
         items_data = validated_data.pop('items')
 
-        # Create the order without the user, the view will add the user
+        # Create the order (it must be created first before adding items)
         order = Order.objects.create(**validated_data)
 
-        # Create or get order items and add them to the order
+        # Now iterate over items_data and create the OrderItem linked to the Order
         for item_data in items_data:
-            item = OrderItem.objects.create(**item_data)  # Create each item individually
-            order.items.add(item)  # Add the item to the order
+            OrderItem.objects.create(order=order, **item_data)
 
         return order
